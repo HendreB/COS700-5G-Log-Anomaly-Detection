@@ -1,40 +1,77 @@
 # Automated Anomaly Detection in 5G Network Logs Using Natural Language Processing
 
-**Module:** COS700 Research Project[cite: 1]  
-**Author:** Hendré Beyer (Student Number: u26846188)[cite: 1]  
-**Supervisor:** Sheunesu Makura[cite: 1]  
+**Module:** COS700 Research Project  
+**Author:** Hendré Beyer (u26846188)  
+**Supervisor:** Sheunesu Makura
 
-## Project Overview
-The rapid global deployment of 5G networks has exponentially increased the volume and complexity of network traffic, creating significant challenges for post-incident digital forensics[cite: 1]. Traditional forensic analysis models rely heavily on manual keyword filtering, which is inadequate for identifying complex, high-volume abnormal events hidden within semi-structured log data[cite: 1]. 
+## Overview
 
-This project is a functional Python prototype that proposes an automated anomaly detection model utilizing Natural Language Processing (NLP)[cite: 1]. By parsing semi-structured cloud infrastructure logs, this research applies Term Frequency-Inverse Document Frequency (TF-IDF) feature extraction and unsupervised clustering algorithms to define normal network behavior and mathematically flag structural deviations[cite: 1].
+Forensic analysis of 5G core logs still relies heavily on keyword filtering, which misses abnormal
+events that don't contain alarm words. This project is a lightweight, unsupervised Python prototype
+that learns what normal 5G core logs look like and flags log lines that don't fit, using TF-IDF
+feature extraction and K-Means clustering. It is benchmarked against traditional keyword filtering on
+Accuracy, Precision, Recall, F1-score and runtime.
 
 ## Objectives
-* Develop a TF-IDF feature extraction model to tokenize semi-structured 5G log data[cite: 1].
-* Implement unsupervised clustering algorithms (e.g., K-Means/DBSCAN) to baseline network behavior and flag anomalies[cite: 1].
-* Benchmark the prototype against traditional keyword filtering based on Accuracy, Precision, Recall, F1-Score, and computational efficiency[cite: 1].
 
-## Repository Structure
-This repository will be organized as follows:
-* `/data` - Mock datasets and generated 5G logs (Note: Large datasets will be excluded via `.gitignore`).
-* `/src` - Source code for the prototype.
-  * `/preprocessing` - Regex tokenization and data cleaning scripts.
-  * `/models` - TF-IDF extraction and unsupervised clustering algorithms.
-* `/results` - Output metrics, evaluation reports, and benchmarking graphs.
+- Use TF-IDF to turn semi-structured 5G core logs into feature vectors.
+- Use unsupervised clustering (K-Means) to model normal network behaviour and flag structural deviations.
+- Benchmark the prototype against traditional keyword filtering on detection quality and computational efficiency.
 
-## Tech Stack
-* **Language:** Python 3.x
-* **Core Libraries:** Scikit-learn, Pandas, NumPy, re (Regular Expressions)
+## How it works
 
-## Setup Instructions (Local Development)
+1. **Preprocessing:** regex replaces the values that change on every line (timestamps, IMSIs, IP addresses,
+   hex codes, IDs) with placeholders, so each line becomes a stable *template*.
+2. **Feature extraction:** TF-IDF (unigrams and bigrams) turns each template into a vector.
+3. **Clustering:** K-Means (k = 15) groups similar lines. In the main mode the clusters are learned from
+   normal traffic only.
+4. **Detection:** each line is scored by its distance to its cluster centre. Lines further out than a set
+   cut-off are flagged as anomalies, and a SOC-style report is produced.
 
-1. **Clone the repository:**
-   git clone https://github.com/[YOUR-GITHUB-USERNAME]/COS700-Log-Anomaly-Detection.git
-   cd COS700-Log-Anomaly-Detection
+## Data
 
-2. **Create and activate a virtual environment:**
-   python3 -m venv venv
-   source venv/bin/activate
+The logs were generated in an isolated lab: the OpenAirInterface 5G core (AMF, SMF, UPF) running in Docker
+in an Ubuntu VM, with UERANSIM simulating the gNodeB and UEs. There is one normal capture and one attack
+capture (an invalid-IMSI registration storm), with the attack start and stop times recorded in
+`attack_timeline.log`. The log files are not in this repository; see [data/README.md](data/README.md).
 
-3. **Install dependencies:**
-   pip install -r requirements.txt
+## Repository structure
+
+```
+COS700-5G-Log-Anomaly-Detection/
+├── main.py                      # Runs the detection pipeline and writes the SOC report
+├── src/
+│   ├── preprocessing/log_parser.py      # Loads logs, regex cleaning into templates
+│   ├── modeling/anomaly_detector.py     # TF-IDF, K-Means, centroid-distance scoring
+│   ├── reporting/summary_report.py      # SOC-style text report
+│   └── evaluation/
+│       ├── keyword_baseline.py          # Keyword-filtering baseline
+│       ├── ground_truth.py              # Attack labels (from the attack timeline)
+│       └── benchmark.py                 # Accuracy, Precision, Recall, F1, runtime, sweep
+├── scripts/
+│   ├── run_benchmark.py                 # Prototype vs keyword filtering (+ threshold sweep)
+│   ├── rate_diagnostic.py               # Log volume over time vs model score (figure)
+│   ├── run_combined_attack_logs.py      # Pipeline on the three attack logs combined
+│   └── build_ground_truth.py            # Optional template-level label file
+├── data/                        # Log files (not in git, see data/README.md)
+├── results/                     # Generated output (not in git)
+├── HOW_TO_RUN.md                # Setup and all commands
+└── requirements.txt
+```
+
+## Running it
+
+See **[HOW_TO_RUN.md](HOW_TO_RUN.md)** for setup and every command. Quick start (Windows PowerShell):
+
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+python main.py --log amf_attack_logs.txt --train-on-normal   # detect + SOC report
+python scripts/run_benchmark.py                              # benchmark vs keyword filtering
+```
+
+## Tech stack
+
+Python 3.10+ with pandas, scikit-learn and matplotlib (matplotlib is only used for the rate diagnostic figure).

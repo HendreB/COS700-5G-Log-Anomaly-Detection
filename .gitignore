@@ -8,10 +8,16 @@ venv/
 env/
 ENV/
 
-# VS Code settings
+# IDE settings
 .vscode/
 
-# Datasets and Logs
-/data/
-*.log
+# Large log datasets (keep README)
+/data/*
+!/data/README.md
+
+# Generated outputs
+/results/
 *.csv
+
+# Personal notes, capture guide and proposal (kept locally)
+/docs/
