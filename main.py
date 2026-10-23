@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.integrity import check_unchanged, hash_files
 from src.modeling.anomaly_detector import DEFAULT_N_CLUSTERS, DEFAULT_OUTLIER_PERCENT, train_and_detect
 from src.preprocessing.log_parser import (
     list_available_logs,
@@ -138,6 +139,11 @@ def main() -> None:
 
     print("Initiating 5G log anomaly detection pipeline...")
 
+    # Fingerprint every log in data/ before reading anything, so I can show afterwards
+    # that the analysis didn't change the evidence.
+    evidence_paths = list_available_logs(DATA_DIR)
+    hashes_before = hash_files(evidence_paths)
+
     # --- Phase 2: Load and preprocess raw logs into templates ---
     df_logs, output_stem, source_files = resolve_dataset(args)
 
@@ -181,12 +187,21 @@ def main() -> None:
     detection.cluster_sizes.to_csv(clusters_path, header=["count"])
     detection.result_df.to_csv(scored_path, index=False)
 
+    integrity_ok = check_unchanged(evidence_paths, hashes_before)
+    # List the fingerprint of every file this run actually used, including the normal baseline.
+    used_files = list(source_files)
+    if baseline_df is not None:
+        used_files += sorted(baseline_df["source_file"].unique())
+    used_hashes = {name: hashes_before[name] for name in used_files}
+
     # --- Phase 4: Generate and print the SOC intelligence report ---
     report = save_soc_report(
         summary_path,
         output_stem,
         detection,
         source_files=source_files,
+        source_hashes=used_hashes,
+        integrity_verified=integrity_ok,
     )
     print_soc_report(report)
 

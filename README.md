@@ -28,6 +28,9 @@ Accuracy, Precision, Recall, F1-score and runtime.
 4. **Detection:** each line is scored by its distance to its cluster centre. Lines further out than a set
    cut-off are flagged as anomalies, and a SOC-style report is produced.
 
+The log files are treated as evidence: they are only opened for reading, every run checks their SHA-256
+fingerprints before and after, and the recorded fingerprints are kept in `evidence/SHA256SUMS`.
+
 ## Data
 
 The logs were generated in an isolated lab: the OpenAirInterface 5G core (AMF, SMF, UPF) running in Docker
@@ -41,6 +44,7 @@ capture (an invalid-IMSI registration storm), with the attack start and stop tim
 COS700-5G-Log-Anomaly-Detection/
 ├── main.py                      # Runs the detection pipeline and writes the SOC report
 ├── src/
+│   ├── integrity.py                     # SHA-256 evidence fingerprints, before/after check
 │   ├── preprocessing/log_parser.py      # Loads logs, regex cleaning into templates
 │   ├── modeling/anomaly_detector.py     # TF-IDF, K-Means, centroid-distance scoring
 │   ├── reporting/summary_report.py      # SOC-style text report
@@ -51,8 +55,10 @@ COS700-5G-Log-Anomaly-Detection/
 ├── scripts/
 │   ├── run_benchmark.py                 # Prototype vs keyword filtering (+ threshold sweep)
 │   ├── rate_diagnostic.py               # Log volume over time vs model score (figure)
+│   ├── verify_evidence.py               # Check the logs against their recorded fingerprints
 │   ├── run_combined_attack_logs.py      # Pipeline on the three attack logs combined
 │   └── build_ground_truth.py            # Optional template-level label file
+├── evidence/SHA256SUMS          # Recorded SHA-256 fingerprints of the log files
 ├── data/                        # Log files (not in git, see data/README.md)
 ├── results/                     # Generated output (not in git)
 ├── HOW_TO_RUN.md                # Setup and all commands

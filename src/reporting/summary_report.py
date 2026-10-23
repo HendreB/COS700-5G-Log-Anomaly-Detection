@@ -55,6 +55,8 @@ def build_soc_report(
     dataset_name: str,
     detection: DetectionResult,
     source_files: list[str] | None = None,
+    source_hashes: dict[str, str] | None = None,
+    integrity_verified: bool | None = None,
 ) -> str:
     """Build an automated third-person SOC executive intelligence report."""
     df_logs = detection.result_df
@@ -71,6 +73,13 @@ def build_soc_report(
     lines.append(f"Dataset Identifier  : {dataset_name}")
     if source_files:
         lines.append(f"Source Artefacts    : {', '.join(source_files)}")
+    # Fingerprints of the evidence, so anyone can check this report was made from the same files.
+    if source_hashes:
+        for name, digest in source_hashes.items():
+            lines.append(f"Source SHA-256      : {digest}  {name}")
+    if integrity_verified is not None:
+        status = "unchanged by the analysis (SHA-256 before = after)" if integrity_verified else "CHANGED DURING ANALYSIS"
+        lines.append(f"Evidence Integrity  : {status}")
     lines.append(f"Total Events Parsed : {len(df_logs):,}")
     lines.append("Detection Method    : TF-IDF + K-Means Micro-Clustering + Centroid Distance")
     if detection.trained_on_baseline:
@@ -284,9 +293,11 @@ def save_soc_report(
     dataset_name: str,
     detection: DetectionResult,
     source_files: list[str] | None = None,
+    source_hashes: dict[str, str] | None = None,
+    integrity_verified: bool | None = None,
 ) -> str:
     """Write the SOC intelligence report to disk."""
-    report = build_soc_report(dataset_name, detection, source_files)
+    report = build_soc_report(dataset_name, detection, source_files, source_hashes, integrity_verified)
     output_path.write_text(report, encoding="utf-8")
     return report
 

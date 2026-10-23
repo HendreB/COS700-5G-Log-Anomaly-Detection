@@ -139,7 +139,26 @@ the model's score for every AMF line. Output in `results/rate_diagnostic/`:
 
 Use `--bucket-seconds N` to change the bucket width.
 
-## 6. Where things live
+## 6. Evidence integrity
+
+The analysis must never change the log files. Three things make that checkable:
+
+1. **Fingerprints:** `evidence/SHA256SUMS` holds a SHA-256 hash of every log and timeline file (kept in git,
+   so the commit date shows when it was recorded). Check the files against it at any time:
+   ```powershell
+   python scripts/verify_evidence.py            # OK / CHANGED / MISSING per file
+   python scripts/verify_evidence.py --create   # only once, for a new capture (refuses to overwrite)
+   ```
+   The file uses the Linux `sha256sum` format, so the original copies in the VM can be checked with
+   `sha256sum -c SHA256SUMS` in the capture folder.
+2. **Before/after check on every run:** `main.py`, `run_combined_attack_logs.py` and `run_benchmark.py` hash
+   the input files before reading them and again at the end, and print
+   `Evidence integrity: N input file(s) unchanged`. The SOC report header lists the SHA-256 of each file used.
+3. **Read-only working copies:** the logs are only ever opened for reading, and the files in `data/` are
+   marked read-only in Windows. To replace them with a new capture, clear that first
+   (`attrib -R data\*.txt data\*.log`), then re-create the manifest.
+
+## 7. Where things live
 
 | Path | Role |
 |------|------|
@@ -150,7 +169,9 @@ Use `--bucket-seconds N` to change the bucket width.
 | `src/evaluation/keyword_baseline.py` | The keyword list (`ALERT_KEYWORDS`) and filter |
 | `src/evaluation/ground_truth.py` | Attack labels from the timeline (and the optional template labels) |
 | `src/evaluation/benchmark.py` | Metrics, runtime, sweep and report tables |
-| `scripts/` | Benchmark, rate diagnostic, combined attack run, label file builder |
+| `src/integrity.py` | SHA-256 fingerprints and the before/after evidence check |
+| `scripts/` | Benchmark, rate diagnostic, evidence check, combined attack run, label file builder |
+| `evidence/SHA256SUMS` | Recorded fingerprints of the log files |
 
 ## Troubleshooting
 

@@ -17,6 +17,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.integrity import check_unchanged, hash_files
 from src.preprocessing.log_parser import list_available_logs, load_and_preprocess_logs
 from src.modeling.anomaly_detector import DEFAULT_N_CLUSTERS, DEFAULT_OUTLIER_PERCENT, train_and_detect
 from src.reporting.summary_report import save_soc_report, print_soc_report
@@ -30,6 +31,8 @@ if not log_files:
     print(f"No attack log files found in {DATA_DIR}")
     raise SystemExit(1)
 
+# Fingerprint the evidence before reading it (see src/integrity.py).
+hashes_before = hash_files(log_files)
 frames = [load_and_preprocess_logs(p) for p in log_files]
 combined = pd.concat(frames, ignore_index=True)
 
@@ -51,8 +54,15 @@ anomalies_path.write_text(detection.anomalies_df.to_csv(index=False), encoding='
 clusters_path.write_text(detection.cluster_sizes.to_csv(header=["count"]), encoding='utf-8')
 scored_path.write_text(detection.result_df.to_csv(index=False), encoding='utf-8')
 
+integrity_ok = check_unchanged(log_files, hashes_before)
+
 # Write the SOC report to disk and print it.
-report = save_soc_report(run_dir / f"{stem}_summary.txt", stem, detection, source_files=[p.name for p in log_files])
+report = save_soc_report(
+    run_dir / f"{stem}_summary.txt", stem, detection,
+    source_files=[p.name for p in log_files],
+    source_hashes=hashes_before,
+    integrity_verified=integrity_ok,
+)
 print_soc_report(report)
 
 print(f"\nArtefacts persisted to results/{stem}/:")

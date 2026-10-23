@@ -52,6 +52,7 @@ from src.evaluation.ground_truth import (
     load_attack_windows,
     load_labels,
 )
+from src.integrity import check_unchanged, hash_files
 from src.modeling.anomaly_detector import DEFAULT_N_CLUSTERS, DEFAULT_OUTLIER_PERCENT
 from src.preprocessing.log_parser import list_available_logs, load_and_preprocess_logs, load_normal_logs
 
@@ -122,6 +123,9 @@ def run_sweep(prepared, args, ground_truth_note: str | None) -> None:
 def main() -> None:
     args = parse_args()
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    # Fingerprint the evidence (logs + timeline) before reading it (see src/integrity.py).
+    evidence_paths = list_available_logs(DATA_DIR) + ([TIMELINE_PATH] if TIMELINE_PATH.exists() else [])
+    hashes_before = hash_files(evidence_paths)
     if args.labels == "timeline":
         windows = load_attack_windows(TIMELINE_PATH)
         window_text = "; ".join(f"{start:%Y-%m-%d %H:%M:%S} to {stop:%H:%M:%S}" for start, stop in windows)
@@ -169,6 +173,7 @@ def main() -> None:
 
     if args.sweep:
         run_sweep(prepared, args, ground_truth_note)
+        check_unchanged(evidence_paths, hashes_before)
         return
 
     all_scores = []
@@ -211,6 +216,7 @@ def main() -> None:
     print("  - benchmark_report.txt")
     for name, _, _ in datasets:
         print(f"  - benchmark_{name}_events.csv")
+    check_unchanged(evidence_paths, hashes_before)
 
 
 if __name__ == "__main__":
